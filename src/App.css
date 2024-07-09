@@ -38,7 +38,11 @@ div:has(> input) {
 }
 
 @media print {
-  .menu-bar {
+  .exclude-from-print {
     display: none;
   }
+}
+
+p {
+  font-size: smaller;
 }
