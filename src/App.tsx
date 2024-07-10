@@ -2,23 +2,38 @@ import "./App.css";
 import { useEffect, useState } from "react";
 import { Datamatrix } from "./components/datamatrix";
 import { Input } from "./components/input";
+import useLocalStorage from "./hooks/use-local-storage";
 
-const LOCAL_STORAGE_KEY = "fileContents";
+const KEYS = {
+  REGEXP: "regexp",
+  PRINT_DATA: "print-data",
+  PRINT_REST: "print-rest",
+  ITEMS_TO_SHOW: "items-to-show",
+  FILE_CONTENTS: "fileContents",
+};
 
 function App() {
-  const [fileContents, setFileContents] = useState<string[]>(
-    JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) ?? "[]")
+  const [fileContents, setFileContents] = useLocalStorage<string[]>(
+    KEYS.FILE_CONTENTS,
+    []
   );
-  const [itemSpanToShow, setItemSpanToShow] = useState<string>(String(9));
+  const [itemSpanToShow, setItemSpanToShow] = useLocalStorage(
+    KEYS.ITEMS_TO_SHOW,
+    String(9)
+  );
   const [list, setList] = useState<string[]>([]);
-  const [regex, setRegex] = useState<RegExp | null>(null);
-  const [printMatchedDataValue, setPrintMatchedDataValue] =
-    useState<boolean>(false);
-  const [printRestValue, setPrintRestValue] = useState<boolean>(true);
-
-  useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(fileContents));
-  }, [fileContents]);
+  const [regex, setRegex] = useLocalStorage<RegExp | null>(KEYS.REGEXP, null, {
+    serializer: (value) => value?.source ?? "",
+    deserializer: (value) => (value ? new RegExp(value) : null),
+  });
+  const [printMatchedDataValue, setPrintMatchedDataValue] = useLocalStorage(
+    KEYS.PRINT_DATA,
+    false
+  );
+  const [printRestValue, setPrintRestValue] = useLocalStorage(
+    KEYS.PRINT_REST,
+    true
+  );
 
   useEffect(() => {
     let [start, end] = itemSpanToShow.split("-").map((n) => Number(n));

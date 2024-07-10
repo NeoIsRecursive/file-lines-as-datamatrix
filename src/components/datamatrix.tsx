@@ -8,7 +8,7 @@ export const Datamatrix = memo(({ data }: { data: string }) => {
 
   return (
     <BakeryDatamatrix
-      scale={12}
+      scale={10}
       foregroundColor={colorBlack}
       backgroundColor={colorWhite}
       text={data}
