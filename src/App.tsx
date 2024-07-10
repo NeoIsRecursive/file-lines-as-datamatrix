@@ -6,6 +6,8 @@ import useLocalStorage from "./hooks/use-local-storage";
 
 const KEYS = {
   REGEXP: "regexp",
+  FILTER_REGEXP: "filter-regexp",
+  INVERSE_FILTER: "inverse-filter",
   PRINT_DATA: "print-data",
   PRINT_REST: "print-rest",
   ITEMS_TO_SHOW: "items-to-show",
@@ -26,6 +28,18 @@ function App() {
     serializer: (value) => value?.source ?? "",
     deserializer: (value) => (value ? new RegExp(value) : null),
   });
+  const [filterRegex, setFilterRegex] = useLocalStorage<RegExp | null>(
+    KEYS.FILTER_REGEXP,
+    null,
+    {
+      serializer: (value) => value?.source ?? "",
+      deserializer: (value) => (value ? new RegExp(value) : null),
+    }
+  );
+  const [inverseFilter, setInverseFilter] = useLocalStorage(
+    KEYS.INVERSE_FILTER,
+    false
+  );
   const [printMatchedDataValue, setPrintMatchedDataValue] = useLocalStorage(
     KEYS.PRINT_DATA,
     false
@@ -47,8 +61,16 @@ function App() {
       end = start + 12;
     }
 
-    setList(fileContents.slice(start, end));
-  }, [fileContents, itemSpanToShow]);
+    setList(
+      fileContents
+        .filter((x) => {
+          if (!filterRegex) return true;
+          const match = filterRegex.test(x);
+          return inverseFilter ? !match : match;
+        })
+        .slice(start, end)
+    );
+  }, [fileContents, itemSpanToShow, filterRegex, inverseFilter]);
 
   return (
     <>
@@ -57,7 +79,7 @@ function App() {
           label="Data Regexp"
           id="regexp"
           type="text"
-          value={regex?.source ?? ""}
+          defaultValue={regex?.source ?? ""}
           onChange={(e) => {
             if (!e.currentTarget.value) return setRegex(null);
             try {
@@ -66,6 +88,30 @@ function App() {
             } catch (e) {
               setRegex(null);
             }
+          }}
+        />
+        <Input
+          label="Filter Regexp"
+          id="regexp"
+          type="text"
+          defaultValue={filterRegex?.source ?? ""}
+          onChange={(e) => {
+            if (!e.currentTarget.value) return setFilterRegex(null);
+            try {
+              const regexp = new RegExp(e.currentTarget.value);
+              setFilterRegex(regexp);
+            } catch (e) {
+              setFilterRegex(null);
+            }
+          }}
+        />
+        <Input
+          label="Inverse filter"
+          id="inverse-filter"
+          checked={inverseFilter}
+          type="checkbox"
+          onChange={(e) => {
+            setInverseFilter(e.currentTarget.checked);
           }}
         />
         <Input
@@ -94,7 +140,7 @@ function App() {
           type="file"
           onChange={(e) => {
             e.currentTarget.files?.[0].text().then((text) => {
-              setFileContents(text.split("\n"));
+              setFileContents(text.split("\n").map((x) => x.trim()));
             });
           }}
         />
