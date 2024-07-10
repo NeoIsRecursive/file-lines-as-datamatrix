@@ -1,5 +1,5 @@
+import { useMemo } from "react";
 import "./App.css";
-import { useEffect, useState } from "react";
 import { Datamatrix } from "./components/datamatrix";
 import { Input } from "./components/input";
 import useLocalStorage from "./hooks/use-local-storage";
@@ -23,7 +23,6 @@ function App() {
     KEYS.ITEMS_TO_SHOW,
     String(9)
   );
-  const [list, setList] = useState<string[]>([]);
   const [regex, setRegex] = useLocalStorage<RegExp | null>(KEYS.REGEXP, null, {
     serializer: (value) => value?.source ?? "",
     deserializer: (value) => (value ? new RegExp(value) : null),
@@ -49,7 +48,7 @@ function App() {
     true
   );
 
-  useEffect(() => {
+  const list = useMemo(() => {
     let [start, end] = itemSpanToShow.split("-").map((n) => Number(n));
 
     if (!end || isNaN(end)) {
@@ -61,15 +60,13 @@ function App() {
       end = start + 12;
     }
 
-    setList(
-      fileContents
-        .filter((x) => {
-          if (!filterRegex) return true;
-          const match = filterRegex.test(x);
-          return inverseFilter ? !match : match;
-        })
-        .slice(start, end)
-    );
+    return fileContents
+      .filter((x) => {
+        if (!filterRegex) return true;
+        const match = filterRegex.test(x);
+        return inverseFilter ? !match : match;
+      })
+      .slice(start, end);
   }, [fileContents, itemSpanToShow, filterRegex, inverseFilter]);
 
   return (
