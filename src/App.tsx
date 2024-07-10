@@ -57,6 +57,7 @@ function App() {
           label="Data Regexp"
           id="regexp"
           type="text"
+          value={regex?.source ?? ""}
           onChange={(e) => {
             if (!e.currentTarget.value) return setRegex(null);
             try {
