@@ -18,7 +18,7 @@ export default function useLocalStorage<T>(
   options?: {
     serializer: (value: T) => string;
     deserializer: (value: string) => T;
-  }
+  },
 ): [T, (value: T) => void] {
   const [value, setValue] = useState(defaultValue);
   const { serializer, deserializer } = { ...defaultOptions, ...options };

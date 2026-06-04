@@ -1,198 +1,77 @@
-import { useMemo } from "react";
-import "./App.css";
+import { useMemo, useState } from "react";
 import { Datamatrix } from "./components/datamatrix";
-import { Input } from "./components/input";
 import useLocalStorage from "./hooks/use-local-storage";
 
-const KEYS = {
-  REGEXP: "regexp",
-  FILTER_REGEXP: "filter-regexp",
-  INVERSE_FILTER: "inverse-filter",
-  PRINT_DATA: "print-data",
-  PRINT_REST: "print-rest",
-  ITEMS_TO_SHOW: "items-to-show",
-  FILE_CONTENTS: "fileContents",
-};
+export const App = () => {
+  const [fileContents, setFileContents] = useState<string[]>([]);
+  const [usedCiids, setUsedCiids] = useLocalStorage<string[]>("usedCiids", []);
 
-function App() {
-  const [fileContents, setFileContents] = useLocalStorage<string[]>(
-    KEYS.FILE_CONTENTS,
-    []
-  );
-  const [itemSpanToShow, setItemSpanToShow] = useLocalStorage(
-    KEYS.ITEMS_TO_SHOW,
-    String(9)
-  );
-  const [regex, setRegex] = useLocalStorage<RegExp | null>(KEYS.REGEXP, null, {
-    serializer: (value) => value?.source ?? "",
-    deserializer: (value) => (value ? new RegExp(value) : null),
-  });
-  const [filterRegex, setFilterRegex] = useLocalStorage<RegExp | null>(
-    KEYS.FILTER_REGEXP,
-    null,
-    {
-      serializer: (value) => value?.source ?? "",
-      deserializer: (value) => (value ? new RegExp(value) : null),
-    }
-  );
-  const [inverseFilter, setInverseFilter] = useLocalStorage(
-    KEYS.INVERSE_FILTER,
-    false
-  );
-  const [printMatchedDataValue, setPrintMatchedDataValue] = useLocalStorage(
-    KEYS.PRINT_DATA,
-    false
-  );
-  const [printRestValue, setPrintRestValue] = useLocalStorage(
-    KEYS.PRINT_REST,
-    true
-  );
-
-  const list = useMemo(() => {
-    let [start, end] = itemSpanToShow.split("-").map((n) => Number(n));
-
-    if (!end || isNaN(end)) {
-      end = start;
-      start = 0;
-    }
-
-    if (end < start) {
-      end = start + 12;
-    }
-
+  const processedLines = useMemo(() => {
     return fileContents
-      .filter((x) => {
-        if (!filterRegex) return true;
-        const match = filterRegex.test(x);
-        return inverseFilter ? !match : match;
-      })
-      .slice(start, end);
-  }, [fileContents, itemSpanToShow, filterRegex, inverseFilter]);
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [ciid, , winType, amount] = line.split(";").map((part) => part.trim());
+        return { ciid, winType: winType ?? "none", amount };
+      });
+  }, [fileContents]);
+
+  const hasUploadedFile = fileContents.length > 0;
 
   return (
-    <>
-      <div className="menu-bar exclude-from-print">
-        <Input
-          label="Data Regexp"
-          id="regexp"
-          type="text"
-          defaultValue={regex?.source ?? ""}
-          onChange={(e) => {
-            if (!e.currentTarget.value) return setRegex(null);
-            try {
-              const regexp = new RegExp(e.currentTarget.value);
-              setRegex(regexp);
-            } catch (e) {
-              setRegex(null);
-            }
-          }}
-        />
-        <Input
-          label="Filter Regexp"
-          id="regexp"
-          type="text"
-          defaultValue={filterRegex?.source ?? ""}
-          onChange={(e) => {
-            if (!e.currentTarget.value) return setFilterRegex(null);
-            try {
-              const regexp = new RegExp(e.currentTarget.value);
-              setFilterRegex(regexp);
-            } catch (e) {
-              setFilterRegex(null);
-            }
-          }}
-        />
-        <Input
-          label="Inverse filter"
-          id="inverse-filter"
-          checked={inverseFilter}
-          type="checkbox"
-          onChange={(e) => {
-            setInverseFilter(e.currentTarget.checked);
-          }}
-        />
-        <Input
-          label="Print data value"
-          id="print-data"
-          checked={printMatchedDataValue}
-          type="checkbox"
-          onChange={(e) => {
-            setPrintMatchedDataValue(e.currentTarget.checked);
-          }}
-        />
-        <Input
-          label="Print rest value"
-          id="print-rest"
-          type="checkbox"
-          checked={printRestValue}
-          onChange={(e) => {
-            setPrintRestValue(e.currentTarget.checked);
-          }}
-        />
-      </div>
-      <div className="menu-bar exclude-from-print">
-        <Input
-          label="Upload a file"
-          id="file-input"
+    <main className="max-w-md mx-auto">
+      {!hasUploadedFile && (
+        <input
           type="file"
           onChange={(e) => {
             e.currentTarget.files?.[0].text().then((text) => {
-              setFileContents(text.split("\n").map((x) => x.trim()));
+              setFileContents(text.split("\n"));
             });
           }}
         />
-        <Input
-          id="items-to-show"
-          label="Items to show"
-          type="text"
-          value={itemSpanToShow}
-          onChange={(e) => {
-            setItemSpanToShow(e.target.value);
-          }}
-        />
-        {fileContents.length ? (
-          <div>
-            <p>
-              Showing {list.length} of {fileContents.length} items
-            </p>
-            <br />
-            <button onClick={() => window.print()}>Print</button>
-            <br />
-            <button onClick={() => setFileContents([])}>Clear</button>
-          </div>
-        ) : (
-          <p>
-            Upload a text file and we will render a datamatrix for each line.
-            Will persist in localstorage
-          </p>
-        )}
-      </div>
+      )}
+      <ul className="grid">
+        {hasUploadedFile &&
+          (processedLines.length === 0 ? (
+            <div className="h-dvh snap-center">
+              <p className="text-center">No valid lines found.</p>
+              <button onClick={() => setFileContents([])}>Reset file</button>
+            </div>
+          ) : (
+            <>
+              {processedLines.map((line, index) => {
+                const isUsed = usedCiids.includes(line.ciid);
+                return (
+                  <li
+                    key={line.ciid}
+                    data-order={index}
+                    className={`h-dvh snap-center max-w-full flex flex-col gap-4 justify-center ${isUsed ? "bg-red-300" : ""}`}
+                  >
+                    <p className="text-xl text-center">
+                      {line.winType}: {line.amount}
+                    </p>
+                    <Datamatrix data={line.ciid} />
+                    <p className="text-center text-lg">ciid: {line.ciid}</p>
 
-      <ul>
-        {list.map((data, index) => {
-          let match: string | null = data;
-          if (regex) match = data?.match(regex)?.[0] ?? null;
-          if (!match) return null;
-
-          const rest = match ? data.replace(match, "") : data;
-          return (
-            <li key={index} className="matrix-item">
-              <Datamatrix data={match} />
-
-              <p className={printMatchedDataValue ? "" : "exclude-from-print"}>
-                {match}
-              </p>
-              {rest && (
-                <p className={printRestValue ? "" : "exclude-from-print"}>
-                  {rest}
-                </p>
-              )}
-            </li>
-          );
-        })}
+                    <button
+                      onClick={() => {
+                        setUsedCiids([...usedCiids, line.ciid]);
+                        document.querySelector(`[data-order="${index + 1}"]`)?.scrollIntoView({
+                          behavior: "smooth",
+                        });
+                      }}
+                    >
+                      {isUsed ? "Already scanned" : "Mark as scanned"}
+                    </button>
+                  </li>
+                );
+              })}
+              <li className="h-dvh snap-center flex flex-col gap-4 justify-center">
+                <button onClick={() => setFileContents([])}>Upload new file</button>
+              </li>
+            </>
+          ))}
       </ul>
-    </>
+    </main>
   );
-}
-
-export default App;
+};
